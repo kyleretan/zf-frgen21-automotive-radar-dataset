@@ -5,6 +5,8 @@ with a ZF FRGen21 77 GHz imaging radar (front-center mounted) on public roads.
 The dataset contains **6 sequences**, ~**78,000 radar frames**, ~**51 km** and
 ~**2 hours** of driving.
 
+![Radar visualizer: 3D point cloud with trajectory (left), azimuth-Doppler plot (right)](docs/visualizer.gif)
+
 ## Sequences
 
 | Sequence | Frames | Duration | Distance | Avg. points/frame |
