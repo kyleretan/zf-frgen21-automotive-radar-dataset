@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zf-frgen21-radar-dataset"
+version = "0.1.0"
+description = "Loader utilities and interactive visualizer for the ZF FRGen21 4D imaging radar dataset"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.23",
+]
+
+[project.optional-dependencies]
+viz = [
+    "pyqtgraph>=0.13",
+    "PyQt6>=6.2",
+    "PyOpenGL>=3.1",
+]
+
+[project.scripts]
+zf-radar-viz = "zf_radar.visualizer:main"
+
+[tool.setuptools]
+packages = ["zf_radar"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

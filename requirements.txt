@@ -1,0 +1,4 @@
+numpy>=1.23
+pyqtgraph>=0.13
+PyQt6>=6.2
+PyOpenGL>=3.1

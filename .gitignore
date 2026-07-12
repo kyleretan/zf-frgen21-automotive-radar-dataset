@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Editors
+.idea/
+.vscode/
+
+# Dataset payloads — never commit radar data (test fixtures excepted)
+ZF_Dataset/
+*.pcd
+extrinsics.csv
+ground_truth.csv
+!tests/**/*.pcd
+!tests/**/extrinsics.csv
+!tests/**/ground_truth.csv

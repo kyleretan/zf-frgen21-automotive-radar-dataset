@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          # oldest supported interpreter + the advertised numpy floor
+          - python-version: "3.9"
+            numpy: "numpy==1.23.*"
+          - python-version: "3.12"
+            numpy: "numpy"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # Loaders must stay importable with numpy alone — no Qt/OpenGL installed here
+      - run: pip install "${{ matrix.numpy }}" pytest
+      - run: pytest tests/ -v
+      # Validate packaging: install, import the public API, and check the
+      # console script fails with the [viz] hint (not a raw traceback)
+      - run: pip install .
+      - run: python -c "from zf_radar import load_pcd, load_extrinsics, load_poses, discover_sequences, __version__"
+      - run: |
+          set +e
+          out=$(zf-radar-viz -p . 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          [ $code -ne 0 ] && echo "$out" | grep -q "viz" || { echo "expected clean [viz] hint"; exit 1; }
