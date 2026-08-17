@@ -68,34 +68,45 @@ def load_pcd(path: str) -> dict[str, np.ndarray]:
     return result
 
 
-def load_extrinsics(seq_dir):
+def load_extrinsics(seq_dir: str) -> np.ndarray:
     """
-    Load sensor-to-vehicle extrinsics from extrinsics.csv.
+    Load the sensor-to-vehicle transform from ``extrinsics.csv``.
 
     Args:
-        seq_dir: Sequence directory (e.g. ZF_Dataset/ZF_1).
+        seq_dir: Sequence directory, for example ``ZF_Dataset/zf_01``.
 
-    Expects a KITTI format row: T00..T23.
+    The loader first checks the sequence directory and then its parent dataset
+    directory. The CSV must contain a header followed by one KITTI-style row
+    with the 12 values ``T00`` through ``T23``.
 
     Returns:
-        np.ndarray: 4x4 extrinsic matrix.
+        A 4x4 transform mapping sensor-frame points into the vehicle frame.
+
+    Raises:
+        FileNotFoundError: If ``extrinsics.csv`` is absent from both expected
+            locations.
+        ValueError: If the file does not contain exactly 12 numeric values.
     """
-    # Search the sequence dir, then the dataset root, then the project root
-    # (the parent of this package in a checkout)
-    for path in [os.path.join(seq_dir, "extrinsics.csv"),
-                 os.path.join(os.path.dirname(os.path.abspath(seq_dir)), "extrinsics.csv"),
-                 os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "extrinsics.csv")]:
+    seq_dir = os.path.abspath(os.fspath(seq_dir))
+    candidates = [
+        os.path.join(seq_dir, "extrinsics.csv"),
+        os.path.join(os.path.dirname(seq_dir), "extrinsics.csv"),
+    ]
+
+    for path in candidates:
         if os.path.exists(path):
             data = np.loadtxt(path, delimiter=",", skiprows=1).reshape(-1)
             if data.size != 12:
                 raise ValueError(f"{path}: expected 12 values (T00..T23), got {data.size}")
             extrinsic = np.eye(4)
             extrinsic[:3, :4] = data.reshape(3, 4)
-            print(f"Loaded extrinsics from {path}")
             return extrinsic
-    print(f"Warning: no extrinsics.csv found for {seq_dir}; "
-          "using identity sensor-to-vehicle transform")
-    return np.eye(4)
+
+    searched = "\n  - ".join(candidates)
+    raise FileNotFoundError(
+        "Could not find the required sensor-to-vehicle extrinsics file. "
+        f"Searched:\n  - {searched}"
+    )
 
 
 def load_poses(seq_dir):

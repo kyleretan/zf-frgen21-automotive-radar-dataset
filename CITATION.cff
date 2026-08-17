@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "Please cite the archived dataset if you use this repository."
+title: "ZF FRGen21 Automotive Radar Dataset"
+type: dataset
+version: 1.0.0
+date-released: 2026-08-16
+
+authors:
+  - family-names: Retan
+    given-names: Kyle
+    orcid: "https://orcid.org/0000-0002-1367-2549"
+  - family-names: Loshaj
+    given-names: Frasher
+    orcid: "https://orcid.org/0000-0003-3985-6853"
+  - family-names: Heizmann
+    given-names: Michael
+    orcid: "https://orcid.org/0000-0001-9339-2055"
+
+doi: "10.5281/zenodo.21318976"
+repository-code: "https://github.com/kyleretan/zf-frgen21-automotive-radar-dataset"
+url: "https://doi.org/10.5281/zenodo.21318976"
+
+license: CC-BY-4.0

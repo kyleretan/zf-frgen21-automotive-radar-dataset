@@ -7,16 +7,38 @@ The dataset contains **6 sequences**, ~**78,000 radar frames**, ~**51 km** and
 
 ![Radar visualizer: 3D point cloud with trajectory (left), azimuth-Doppler plot (right)](docs/visualizer.gif)
 
+## Download
+
+The complete dataset is permanently archived on Zenodo:
+
+**[Download the ZF FRGen21 Automotive Radar Dataset](https://doi.org/10.5281/zenodo.21318976)**
+
+The Zenodo record contains six sequence archives (`zf_01.zip` … `zf_06.zip`),
+a shared `extrinsics.csv`, and the complete dataset documentation.
+
+## Getting started
+
+1. Download and unzip each sequence archive into a common directory.
+2. Place the shared `extrinsics.csv` at the root of that directory.
+3. Install this repository and optionally launch the visualizer:
+
+```bash
+git clone https://github.com/kyleretan/zf-frgen21-automotive-radar-dataset.git
+cd zf-frgen21-automotive-radar-dataset
+pip install ".[viz]"
+zf-radar-viz -p /path/to/ZF_Dataset
+```
+
 ## Sequences
 
-| Sequence | Frames | Duration | Distance | Avg. points/frame |
-|----------|-------:|---------:|---------:|------------------:|
-| zf_01    |  5,205 |  7.8 min |  3.1 km  | 690 |
-| zf_02    | 10,914 | 16.4 min |  4.9 km  | 381 |
-| zf_03    |  7,548 | 11.3 min |  6.7 km  | 589 |
-| zf_04    | 14,971 | 22.5 min | 10.5 km  | 604 |
-| zf_05    | 17,717 | 26.6 min | 10.9 km  | 532 |
-| zf_06    | 21,643 | 32.5 min | 14.9 km  | 513 |
+| Sequence | Frames | Duration | Distance |
+|----------|-------:|---------:|---------:|
+| zf_01    |  5,205 |  7.8 min |  3.1 km  |
+| zf_02    | 10,914 | 16.4 min |  4.9 km  |
+| zf_03    |  7,548 | 11.3 min |  6.7 km  |
+| zf_04    | 14,971 | 22.5 min | 10.5 km  |
+| zf_05    | 17,717 | 26.6 min | 10.9 km  |
+| zf_06    | 21,643 | 32.5 min | 14.9 km  |
 
 ## Directory layout
 
@@ -40,13 +62,15 @@ ZF_Dataset/
   positive **up** (`elevation = arcsin(z / range)`).
 - **Vehicle frame:** origin at the **center of the rear axle** (GNSS/INS
   reference point), axes aligned with the sensor frame convention.
-- **World frame:** local frame anchored at the vehicle pose of the first
-  frame of each sequence (first pose is the identity).
+- **World frame:** the origin and axes coincide with the vehicle frame at the
+  first retained radar frame of each sequence. Consequently, the first
+  vehicle-to-world pose is the identity.
 
 ## Radar frames (`radar/frame_XXXXXX.pcd`)
 
-ASCII PCD v0.7 files, one per radar scan (~11.1 Hz frame rate). Two metadata
-lines precede the standard PCD header:
+ASCII PCD v0.7 files, one per retained radar scan (~11.1 Hz average frame rate
+over the published sequences). Two metadata lines precede the standard PCD
+header:
 
 ```
 # .PCD v0.7 - Point Cloud Data file format
@@ -60,7 +84,7 @@ DATA ascii
 
 | Metadata | Description |
 |----------|-------------|
-| `timestamp_ns` | Absolute start time of the radar measurement, in nanoseconds |
+| `timestamp_ns` | Midpoint of the radar chirp sequence, expressed as nanoseconds since the Unix epoch (`1970-01-01 00:00:00 UTC`) and derived from the GPS-synchronized OxTS time base |
 | `velocity_ambiguity` | Width of the unambiguous Doppler interval in m/s (see below) |
 
 | Field | Unit | Description |
@@ -80,6 +104,12 @@ consecutive frames with different ambiguity ranges (≈32.5 and ≈43.6 m/s),
 so the unambiguous interval changes frame to frame — always read it from the
 frame header. Observed field of view is roughly ±50° azimuth, ±15° elevation,
 with detections out to ~100 m.
+
+**Manufacturer specifications.** The manufacturer specifies nominal accuracies
+of 0.15° in azimuth, 0.3° in elevation, 0.01 m/s in radial velocity, and 0.02 m
+in range, depending on target properties and sensor mode. These values were not
+estimated from this dataset and should not be interpreted as measurement-noise
+standard deviations.
 
 > ⚠️ **Generic PCD readers (Open3D, PCL) return only `x`/`y`/`z`** and
 > silently drop the radar fields (`velocity`, `snr`, …) and the comment-line
@@ -117,7 +147,12 @@ load_poses, load_extrinsics, discover_sequences`.
 
 ## Ground truth (`ground_truth.csv`)
 
-GNSS/INS (OXTS) ground truth sampled at the radar frame timestamps.
+GNSS/INS (OxTS) ground truth supplied at the radar frame timestamps. The OxTS
+system was configured to provide the vehicle pose at the center of the rear
+axle. The published poses are supplied directly at this reference point rather
+than being transformed there during dataset post-processing. The trajectories
+were generated using combined forward–backward OxTS processing. This processing
+changes the estimated navigation solution but not the associated timestamps.
 The first line of the file is a **header row** (`t,T00,…,wz`); every line
 after it is **one data row per radar frame**, so data row *i* corresponds to
 `frame_%06i.pcd` (the file has exactly `num_frames + 1` lines). KITTI-style
@@ -126,9 +161,16 @@ format, 19 comma-separated columns:
 | Columns | Description |
 |---------|-------------|
 | `t` | Frame timestamp in seconds, relative to the sequence start |
-| `T00 … T23` | Vehicle-to-world pose: 3×4 transform `[R | t]`, row-major |
+| `T00 … T23` | Vehicle-to-world pose: 3×4 transform <code>[R &#124; t]</code>, row-major |
 | `vx, vy, vz` | Linear velocity in the **vehicle body frame**, m/s |
 | `wx, wy, wz` | Angular velocity in the vehicle body frame, rad/s |
+
+For each sequence, `t` is obtained from the corresponding radar-frame
+timestamp as
+
+```text
+t[i] = (timestamp_ns[i] - timestamp_ns[0]) * 1e-9
+```
 
 ```python
 import numpy as np
@@ -145,8 +187,12 @@ v_body, w_body = data[:, 13:16], data[:, 16:19]
 Sensor-to-vehicle transform in the same 3×4 row-major format (`T00 … T23`),
 shared by all sequences. Like the ground truth, the file has a header row
 followed by a single data row. The radar is mounted **3.925 m ahead of the rear
-axle** at the front bumper. To project a radar point `p` (sensor frame) into
-the world frame of frame `i`:
+axle** at the front bumper. The transform maps a point from the **sensor frame
+into the vehicle frame** (`p_vehicle = T_sensor_vehicle @ p_sensor`). Its
+rotational component is the nominal identity, corresponding to an assumed
+alignment between the radar and vehicle axes; it was not independently
+estimated. To project a radar point `p` (sensor frame) into the world frame of
+frame `i`:
 
 ```python
 p_world = T[i] @ T_sensor_vehicle @ [x, y, z, 1]
@@ -182,6 +228,30 @@ upcoming), the rear-axle and sensor positions, and the ego-vehicle outline.
 The azimuth–Doppler plot uses a driver's-eye orientation (targets to the
 right of the vehicle appear on the right).
 
-## License & citation
+## License
 
-*(to be added)*
+The loader and visualization software in this repository is released under the
+[MIT License](LICENSE).
+
+The associated dataset is released separately under the
+[Creative Commons Attribution 4.0 International
+License](https://creativecommons.org/licenses/by/4.0/).
+
+## Citation
+
+Please cite the archived dataset using the citation provided by Zenodo:
+
+```bibtex
+@dataset{retan_2026_zf_frgen21,
+  author    = {Retan, Kyle and Loshaj, Frasher and Heizmann, Michael},
+  title     = {{ZF FRGen21 Automotive Radar Dataset}},
+  year      = {2026},
+  publisher = {Zenodo},
+  version   = {v1.0.0},
+  doi       = {10.5281/zenodo.21318976},
+  url       = {https://doi.org/10.5281/zenodo.21318976}
+}
+```
+
+An associated manuscript describes the dataset and its use for radar odometry.
+Article citation details will be added after publication.

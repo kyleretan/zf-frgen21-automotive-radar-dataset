@@ -3,7 +3,6 @@
 import numpy as np
 import pytest
 
-from zf_radar import loaders
 from zf_radar.loaders import discover_sequences, load_extrinsics, load_pcd, load_poses
 
 
@@ -86,15 +85,11 @@ class TestLoadExtrinsics:
         T = load_extrinsics(str(seq))
         np.testing.assert_array_equal(T[:3, 3], [3.925, 0, 0])
 
-    def test_missing_returns_identity_with_warning(self, tmp_path, capsys, monkeypatch):
-        # Point the project-root fallback into tmp_path so a real
-        # extrinsics.csv in the checkout can't leak into the test
-        monkeypatch.setattr(loaders, "__file__", str(tmp_path / "pkg" / "loaders.py"))
+    def test_missing_raises(self, tmp_path):
         seq = tmp_path / "zf_01"
         seq.mkdir()
-        T = load_extrinsics(str(seq))
-        np.testing.assert_array_equal(T, np.eye(4))
-        assert "Warning" in capsys.readouterr().out
+        with pytest.raises(FileNotFoundError, match="required sensor-to-vehicle extrinsics"):
+            load_extrinsics(str(seq))
 
     def test_wrong_size_raises(self, tmp_path):
         seq = tmp_path / "zf_01"
