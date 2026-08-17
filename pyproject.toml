@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zf-frgen21-radar-dataset"
-version = "0.1.0"
+version = "0.2.0"
 description = "Loader utilities and interactive visualizer for the ZF FRGen21 4D imaging radar dataset"
 readme = "README.md"
 license = "MIT"
